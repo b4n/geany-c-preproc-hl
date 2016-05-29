@@ -1,0 +1,7 @@
+# build system stuff
+.libs/
+.deps/
+*.lo
+*.la
+
+/geany-plugin.mk
