@@ -169,6 +169,11 @@ static void setup_document (GeanyDocument *doc)
   if (lexer == SCLEX_CPP) {
     uptr_t i;
 
+    scintilla_send_message (doc->editor->sci, SCI_SETPROPERTY,
+                            (uptr_t) "lexer.cpp.track.preprocessor", (sptr_t) "1");
+    scintilla_send_message (doc->editor->sci, SCI_SETPROPERTY,
+                            (uptr_t) "lexer.cpp.update.preprocessor", (sptr_t) "1");
+
     for (i = 0; i < ACTIVITY_FLAG; i++) {
       sptr_t v, fg, bg;
       
