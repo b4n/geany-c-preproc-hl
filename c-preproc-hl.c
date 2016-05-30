@@ -19,14 +19,6 @@
 #include <SciLexer.h>
 
 
-GeanyPlugin    *geany_plugin;
-GeanyData      *geany_data;
-GeanyFunctions *geany_functions;
-
-PLUGIN_VERSION_CHECK (211) /* FIXME */
-PLUGIN_SET_INFO ("C Proprocessor highlight", "Highlights disabled C code",
-                 "0.1", "Colomban Wendling <colomban@geany.org>")
-
 #if 0
 static void rgb2hsl (const double r,
                      const double g,
@@ -206,12 +198,30 @@ static void on_filetype_set (GObject       *obj,
   }
 }
 
-void plugin_init (GeanyData *data)
+static gboolean cph_init (GeanyPlugin  *plugin,
+                          gpointer      data)
 {
-  plugin_signal_connect (geany_plugin, NULL, "document-filetype-set", TRUE,
+  plugin_signal_connect (plugin, NULL, "document-filetype-set", TRUE,
                          G_CALLBACK (on_filetype_set), NULL);
+  
+  return TRUE;
 }
 
-void plugin_cleanup (void)
+static void cph_cleanup (GeanyPlugin *plugin,
+                         gpointer     data)
 {
+}
+
+G_MODULE_EXPORT
+void geany_load_module (GeanyPlugin *plugin)
+{
+  plugin->info->name = "C Proprocessor highlight";
+  plugin->info->description = "Highlights disabled C code";
+  plugin->info->version = "0.1";
+  plugin->info->author = "Colomban Wendling <colomban@geany.org>";
+  
+  plugin->funcs->init = cph_init;
+  plugin->funcs->cleanup = cph_cleanup;
+  
+  GEANY_PLUGIN_REGISTER (plugin, 225);
 }
