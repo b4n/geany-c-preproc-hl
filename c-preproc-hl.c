@@ -162,10 +162,7 @@ static sptr_t color_mul2 (const sptr_t c,
 #define ACTIVITY_FLAG 0x40 /* see LexCPP */
 
 
-static void on_filetype_set (GObject       *obj,
-                             GeanyDocument *doc,
-                             GeanyFiletype *filetype_old,
-                             gpointer       user_data)
+static void setup_document (GeanyDocument *doc)
 {
   sptr_t lexer = scintilla_send_message (doc->editor->sci, SCI_GETLEXER, 0, 0);
 
@@ -202,11 +199,32 @@ static void on_filetype_set (GObject       *obj,
   }
 }
 
+static void on_filetype_set (GObject       *obj,
+                             GeanyDocument *doc,
+                             GeanyFiletype *filetype_old,
+                             gpointer       user_data)
+{
+  setup_document (doc);
+}
+
 static gboolean cph_init (GeanyPlugin  *plugin,
                           gpointer      data)
 {
   plugin_signal_connect (plugin, NULL, "document-filetype-set", TRUE,
                          G_CALLBACK (on_filetype_set), NULL);
+  
+  /* initial setup of currently open documents */
+  if (main_is_realized ()) {
+    guint i;
+    
+    for (i = 0; i < plugin->geany_data->documents_array->len; i++) {
+      GeanyDocument *doc = plugin->geany_data->documents_array->pdata[i];
+      
+      if (doc->is_valid) {
+        setup_document (doc);
+      }
+    }
+  }
   
   return TRUE;
 }
