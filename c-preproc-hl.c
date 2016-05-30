@@ -22,6 +22,10 @@
 #include <geanyplugin.h>
 #include <SciLexer.h>
 
+/* FIXME: get this from Geany */
+#define TM_PARSER_C 0
+#define TM_PARSER_CPP 1
+
 
 #if 0
 static void rgb2hsl (const double r,
@@ -162,11 +166,14 @@ static sptr_t color_mul2 (const sptr_t c,
 #define ACTIVITY_FLAG 0x40 /* see LexCPP */
 
 
+static gboolean document_is_supported (GeanyDocument *doc)
+{
+  return SCLEX_CPP == scintilla_send_message (doc->editor->sci, SCI_GETLEXER, 0, 0);
+}
+
 static void setup_document (GeanyDocument *doc)
 {
-  sptr_t lexer = scintilla_send_message (doc->editor->sci, SCI_GETLEXER, 0, 0);
-
-  if (lexer == SCLEX_CPP) {
+  if (document_is_supported (doc)) {
     uptr_t i;
 
     scintilla_send_message (doc->editor->sci, SCI_SETPROPERTY,
@@ -212,11 +219,100 @@ static void on_filetype_set (GObject       *obj,
   setup_document (doc);
 }
 
+static gboolean lang_compatible (TMParserType a,
+                                 TMParserType b)
+{
+  /* mostly stolen from Geany */
+  return (a == b ||
+          (a == TM_PARSER_CPP && b == TM_PARSER_C) ||
+          (a == TM_PARSER_C && b == TM_PARSER_CPP));
+}
+
+/* try and determine whether @tag comes from a header or not.  @tag->local
+ * doesn't work because it's dummy in our implementation (see isIncludeFile()
+ * in CTags' source) */
+static gboolean tag_is_header (TMTag *tag)
+{
+  const gchar *ext;
+  
+  if (tag->file && tag->file->short_name &&
+      (ext = strrchr (tag->file->short_name, '.'))) {
+    ++ext;
+    
+    return ((ext[0] == 'h' /* optimize the match for .h* */ &&
+             (ext[1] == 0 /* h */ ||
+              ! g_ascii_strcasecmp (&ext[1], "h") /* hh */ ||
+              ! g_ascii_strcasecmp (&ext[1], "p") /* hp */ ||
+              ! g_ascii_strcasecmp (&ext[1], "pp") /* hpp */ ||
+              ! g_ascii_strcasecmp (&ext[1], "xx") /* hxx */ ||
+              ! g_ascii_strcasecmp (&ext[1], "++") /* h++ */)) ||
+            ! g_ascii_strcasecmp (ext, "tcc") /* from GCC's manual */);
+  } else {
+    return TRUE; /* global tag file (tag->file == NULL) or no extension */
+  }
+}
+
+static void collect_preprocessor_definitions_append (GPtrArray     *tags,
+                                                     GString       *str,
+                                                     TMParserType   lang,
+                                                     TMSourceFile  *current_file)
+{
+  if (tags) {
+    guint i;
+    
+    for (i = 0; i < tags->len; i++) {
+      TMTag *tag = tags->pdata[i];
+      
+      if (tag && lang_compatible (lang, tag->lang) &&
+          tag->type & (tm_tag_macro_t | tm_tag_macro_with_arg_t) &&
+          (! tag->file || tag->file != current_file) &&
+          tag_is_header (tag)) {
+        if (str->len > 0) {
+          g_string_append_c (str, ' ');
+        }
+        /* FIXME: we should find the value of the define somehow, so we catch
+         * 0s, and we should also catch undefs as such so we can drop it. */
+        g_string_append(str, tag->name);
+      }
+    }
+  }
+}
+
+static gchar *collect_preprocessor_definitions (const TMWorkspace  *ws,
+                                                TMParserType        lang,
+                                                TMSourceFile       *current_file)
+{
+  GString *str = g_string_new (NULL);
+  
+  collect_preprocessor_definitions_append (ws->tags_array, str, lang, current_file);
+  collect_preprocessor_definitions_append (ws->global_tags, str, lang, current_file);
+  
+  return g_string_free (str, FALSE);
+}
+
+static void on_document_activate (GObject        *obj,
+                                  GeanyDocument  *doc,
+                                  GeanyPlugin    *plugin)
+{
+  if (document_is_supported (doc)) {
+    gchar *words = collect_preprocessor_definitions (plugin->geany_data->app->tm_workspace,
+                                                     doc->file_type->lang,
+                                                     doc->tm_file);
+    
+    if (words) {
+      scintilla_send_message (doc->editor->sci, SCI_SETKEYWORDS, 4, (sptr_t) words);
+      g_free (words);
+    }
+  }
+}
+
 static gboolean cph_init (GeanyPlugin  *plugin,
                           gpointer      data)
 {
   plugin_signal_connect (plugin, NULL, "document-filetype-set", TRUE,
                          G_CALLBACK (on_filetype_set), NULL);
+  plugin_signal_connect (plugin, NULL, "document-activate", TRUE,
+                         G_CALLBACK (on_document_activate), plugin);
   
   /* initial setup of currently open documents */
   if (main_is_realized ()) {
