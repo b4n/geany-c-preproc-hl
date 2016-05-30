@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
 #include <glib.h>
 #include <geanyplugin.h>
 #include <SciLexer.h>
@@ -215,8 +219,10 @@ static void cph_cleanup (GeanyPlugin *plugin,
 G_MODULE_EXPORT
 void geany_load_module (GeanyPlugin *plugin)
 {
-  plugin->info->name = "C Proprocessor highlight";
-  plugin->info->description = "Highlights disabled C code";
+  main_locale_init (LOCALEDIR, GETTEXT_PACKAGE);
+  
+  plugin->info->name = _("C Proprocessor highlight");
+  plugin->info->description = _("Highlights disabled C code");
   plugin->info->version = "0.1";
   plugin->info->author = "Colomban Wendling <colomban@geany.org>";
   

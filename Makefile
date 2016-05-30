@@ -1,6 +1,8 @@
 #!/usr/bin/make -f
 
 PLUGIN = c-preproc-hl
+PLUGIN_CFLAGS = -DLOCALEDIR='"$(datadir)/locale"' \
+                -DGETTEXT_PACKAGE='"$(PLUGIN)"'
 
 VPATH ?= .
 
