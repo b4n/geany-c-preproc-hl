@@ -27,68 +27,6 @@
 #define TM_PARSER_CPP 1
 
 
-#if 0
-static void rgb2hsl (const double r,
-                     const double g,
-                     const double b,
-                     double *const h,
-                     double *const s,
-                     double *const l)
-{
-  double xmin = r, xmax = r;
-  if (xmin > g) xmin = g;
-  if (xmax < g) xmax = g;
-  if (xmin > b) xmin = b;
-  if (xmax < b) xmax = b;
-  
-  *l = (xmin + xmax) / 2;
-  
-  if (xmin == xmax)   *s = 0;
-  else if (*l < 0.5)  *s = (xmax - xmin) / (xmax + xmin);
-  else                *s = (xmax - xmin) / (2 - xmax + xmin);
-  
-  if (xmin == xmax)   *h = 0;
-  else if (r == xmax) *h = 0 + (g - b) / (xmax - xmin);
-  else if (g == xmax) *h = 2 + (b - r) / (xmax - xmin);
-  else if (b == xmax) *h = 4 + (r - g) / (xmax - xmin);
-  else *h = 0;
-  if (*h < 0)
-    *h += 6;
-}
-
-static void hsl2rgb (/*const*/ double h,
-                     const double s,
-                     const double l,
-                     double *const r,
-                     double *const g,
-                     double *const b)
-{
-  if (s == 0)
-    *r = *g = *b = l;
-  else
-  {
-    double t1, t2, t3;
-    
-    if (l < 0.5) t2 = l * (1 + s);
-    else         t2 = l + s - l * s;
-    t1 = 2 * l - t2;
-    
-    h = h/6.;
-
-#define WTF(c) \
-    if (t3 < 1/6.) c = t1 + (t2 - t1 ) * 6 * t3; \
-    else if (t3 < 1/2.) c = t2; \
-    else if (t3 < 2/3.) c = t1 + (t2 - t1) * (2/3. - t3) * 6; \
-    else c = t1;
-
-    /* r */ t3 = h + 1/3.; if (t3 > 1) t3 -= 1; WTF (*r);
-    /* g */ t3 = h; WTF (*g);
-    /* b */ t3 = h - 1/3.; if (t3 < 0) t3 += 1; WTF (*b);
-#undef WTF
-  }
-}
-#endif
-
 static sptr_t color_blend (const sptr_t a,
                            const sptr_t b,
                            const double p)
@@ -114,52 +52,6 @@ static sptr_t color_blend (const sptr_t a,
 #endif
 }
 
-#if 0
-static sptr_t color_mul (const sptr_t c,
-                         const double f)
-{
-  const sptr_t b = (c >> 16) & 0xff;
-  const sptr_t g = (c >>  8) & 0xff;
-  const sptr_t r = (c >>  0) & 0xff;
-  
-  return ((sptr_t) (0x7f + (b - 0x7f) * f) << 16 |
-          (sptr_t) (0x7f + (g - 0x7f) * f) <<  8 |
-          (sptr_t) (0x7f + (r - 0x7f) * f) <<  0);
-}
-
-
-static sptr_t color_mul2 (const sptr_t c,
-                         const double f)
-{
-  double b = ((c >> 16) & 0xff) / 256.;
-  double g = ((c >>  8) & 0xff) / 256.;
-  double r = ((c >>  0) & 0xff) / 256.;
-  
-  double h, s, l;
-  rgb2hsl (r, g, b, &h, &s, &l);
-  g_debug("h, s, l = %g, %g, %g", h, s, l);
-  g_debug("h = %g", l);
-  //~ l = 0.5 + (l - 0.5) * f;
-  s = 0.5 + (s - 0.5) * f;
-  s = MIN (s, 0.2);
-  l = MAX (l, 0.7);
-  g_debug("h = %g", l);
-  //~ s = 1 + (s / 2) - s;
-  //~ l *= f;
-  //~ s /= f;
-  hsl2rgb (h, s, l, &r, &g, &b);
-  g_debug("r, b, g = %g, %g, %g", r, g, b);
-  
-  return ((sptr_t) (b * 256) << 16 |
-          (sptr_t) (g * 256) <<  8 |
-          (sptr_t) (r * 256) <<  0);
-}
-
-#define COLOR_MUL(c, f) color_mul2(c,f)
-
-#define BG_COLOR_MUL 0.2
-#define FG_COLOR_MUL 0.1
-#endif
 #define BG_COLOR_BLEND 1.0
 #define FG_COLOR_BLEND 0.5
 
